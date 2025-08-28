@@ -1689,8 +1689,32 @@ describe("Scrape tests", () => {
         }, identity);
 
         expect(response.statusCode).toBe(400);
-        expect(response.body.error).toContain("additionalProperties");
         expect(response.body.error).toContain("OpenAI");
+      }, scrapeTimeout);
+
+      it("should reject scrape request with object type without properties", async () => {
+        const identity = await idmux({ name: "schema-validation-test" });
+        
+        const response = await scrapeRaw({
+          url: "https://example.com",
+          formats: ["extract"],
+          extract: {
+            schema: {
+              type: "object",
+              properties: {
+                address: { type: "string" },
+                detail: {
+                  type: "object",
+                  description: "Any other specifications of the particular make and model in the page"
+                }
+              }
+            }
+          }
+        }, identity);
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.error).toContain("OpenAI");
+        expect(response.body.error).toContain("properties");
       }, scrapeTimeout);
     }
   });

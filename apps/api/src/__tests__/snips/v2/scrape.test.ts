@@ -1828,6 +1828,41 @@ describe("attributes format", () => {
 
         expect(response.statusCode).toBe(200);
       }, scrapeTimeout);
+
+      it("should reject schema with object type without properties", async () => {
+        const identity = await idmux({ name: "schema-validation-test" });
+        
+        const response = await fetch(`${process.env.TEST_URL}/v2/scrape`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${identity.apiKey}`
+          },
+          body: JSON.stringify({
+            url: "https://example.com",
+            formats: [
+              {
+                type: "json",
+                schema: {
+                  type: "object",
+                  properties: {
+                    address: { type: "string" },
+                    detail: {
+                      type: "object",
+                      description: "Any other specifications of the particular make and model in the page"
+                    }
+                  }
+                }
+              }
+            ]
+          })
+        });
+
+        expect(response.status).toBe(400);
+        const data = await response.json();
+        expect(data.error).toContain("OpenAI");
+        expect(data.error).toContain("properties");
+      }, scrapeTimeout);
     }
   });
 });

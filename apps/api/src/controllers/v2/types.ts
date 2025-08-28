@@ -66,23 +66,25 @@ const strictMessage =
 function validateSchemaForOpenAI(schema: any): boolean {
   if (!schema || typeof schema !== 'object') return true;
   
-  function hasAdditionalProperties(obj: any): boolean {
+  function hasInvalidStructure(obj: any): boolean {
     if (typeof obj !== 'object' || obj === null) return false;
     
     if (obj.hasOwnProperty('additionalProperties')) return true;
     
+    if (obj.type === 'object' && !obj.hasOwnProperty('properties')) return true;
+    
     for (const value of Object.values(obj)) {
       if (typeof value === 'object' && value !== null) {
-        if (hasAdditionalProperties(value)) return true;
+        if (hasInvalidStructure(value)) return true;
       }
     }
     return false;
   }
   
-  return !hasAdditionalProperties(schema);
+  return !hasInvalidStructure(schema);
 }
 
-const OPENAI_SCHEMA_ERROR_MESSAGE = "Schema contains 'additionalProperties' which is not supported by OpenAI. Please remove this property from your schema.";
+const OPENAI_SCHEMA_ERROR_MESSAGE = "Schema contains invalid structure for OpenAI: either 'additionalProperties' property (not supported) or object type without 'properties' defined (required by OpenAI). Please fix your schema.";
 
 const ACTIONS_MAX_WAIT_TIME = 60;
 const MAX_ACTIONS = 50;
