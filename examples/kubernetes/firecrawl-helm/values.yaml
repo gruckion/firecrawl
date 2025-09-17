@@ -64,7 +64,7 @@ config:
   PLAYWRIGHT_MICROSERVICE_URL: "http://playwright-service:3000"
   USE_DB_AUTHENTICATION: "false"
   HDX_NODE_BETA_MODE: "1"
-  NUQ_DATABASE_URL: "postgresql://user:password@postgres:5432/firecrawl"
+  NUQ_DATABASE_URL: "postgresql://postgres:password@nuq-postgres:5432/postgres"
 
 playwrightConfig:
   PORT: "3000"
