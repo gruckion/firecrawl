@@ -323,75 +323,98 @@ async function scrapePDFWithRacing(
 ): Promise<PDFProcessorResult> {
   meta.logger.info("Starting PDF processing with RunPod MU", { tempFilePath });
 
-  const runPodPromise = scrapePDFWithRunPodMU(
-    {
-      ...meta,
-      logger: meta.logger.child({ method: "scrapePDFWithRacing/runpod" }),
-    },
-    tempFilePath,
-    base64Content,
-    maxPages,
-  );
-
-  // Set up a delayed start for Reducto
-  let reductoPromise: Promise<PDFProcessorResult> | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
+  let reductoPromise: Promise<PDFProcessorResult | null> | null = null;
   let reductoStarted = false;
 
-  const timeoutPromise = new Promise<void>(resolve => {
-    setTimeout(() => {
-      if (!reductoStarted && process.env.REDUCTO_API_KEY) {
-        meta.logger.info(
-          "RunPod MU taking > 120 seconds, starting Reducto in parallel",
-        );
-        reductoStarted = true;
-        reductoPromise = scrapePDFWithReducto(
-          {
-            ...meta,
-            logger: meta.logger.child({
-              method: "scrapePDFWithRacing/reducto",
-            }),
-          },
-          tempFilePath,
-          base64Content,
-          maxPages,
-        ).catch(error => {
-          meta.logger.warn("Reducto failed during race", { error });
-          throw error;
-        });
-      }
-      resolve();
-    }, RUNPOD_TIMEOUT_BEFORE_REDUCTO);
-  });
-
   try {
-    // First, try to get RunPod result within the timeout period
-    const result = (await Promise.race([
-      runPodPromise,
-      timeoutPromise.then(() => {
-        // If we get here, RunPod hasn't finished yet
-        if (reductoPromise) {
-          // Race RunPod and Reducto
-          return Promise.race([
-            runPodPromise.catch(error => {
-              meta.logger.warn("RunPod MU failed during race", { error });
-              throw error;
-            }),
-            reductoPromise,
-          ]);
+    const runPodPromise = scrapePDFWithRunPodMU(
+      {
+        ...meta,
+        logger: meta.logger.child({ method: "scrapePDFWithRacing/runpod" }),
+      },
+      tempFilePath,
+      base64Content,
+      maxPages,
+    );
+
+    // Set up a delayed start for Reducto
+    const startReductoAfterTimeout = new Promise<PDFProcessorResult | null>(
+      resolve => {
+        timeoutId = setTimeout(() => {
+          if (!reductoStarted && process.env.REDUCTO_API_KEY) {
+            meta.logger.info(
+              "RunPod MU taking > 120 seconds, starting Reducto in parallel",
+            );
+            reductoStarted = true;
+
+            // Start Reducto but don't let it fail the whole operation
+            reductoPromise = scrapePDFWithReducto(
+              {
+                ...meta,
+                logger: meta.logger.child({
+                  method: "scrapePDFWithRacing/reducto",
+                }),
+              },
+              tempFilePath,
+              base64Content,
+              maxPages,
+            ).catch(error => {
+              meta.logger.warn("Reducto failed during race", { error });
+              return null; // Return null instead of throwing
+            });
+
+            // Now race both parsers
+            Promise.race([
+              runPodPromise.catch(error => {
+                meta.logger.warn("RunPod MU failed during race", { error });
+                return null; // Return null instead of throwing
+              }),
+              reductoPromise,
+            ]).then(result => {
+              if (result) {
+                resolve(result);
+              } else {
+                // Both failed, resolve with null
+                resolve(null);
+              }
+            });
+          } else {
+            // Timeout fired but Reducto not available
+            resolve(null);
+          }
+        }, RUNPOD_TIMEOUT_BEFORE_REDUCTO);
+      },
+    );
+
+    // Race RunPod against the timeout
+    const result = await Promise.race([
+      runPodPromise.then(res => {
+        // RunPod succeeded, clear the timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
         }
-        // If no Reducto available, just wait for RunPod
-        return runPodPromise;
+        return res;
       }),
-    ])) as PDFProcessorResult;
+      startReductoAfterTimeout,
+    ]);
+
+    if (!result) {
+      // If we get null, it means both parsers failed
+      throw new Error("Both RunPod MU and Reducto failed to parse PDF");
+    }
 
     meta.logger.info("PDF processing completed successfully", {
       parser: reductoStarted ? "race_winner" : "runpod",
     });
 
     return result;
-  } catch (error) {
-    // If both fail, throw the error
-    throw error;
+  } finally {
+    // Always clean up the timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
 
