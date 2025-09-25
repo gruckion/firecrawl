@@ -249,8 +249,6 @@ export interface SearchRequest {
   timeout?: number; // ms
   scrapeOptions?: ScrapeOptions;
   integration?: string;
-  waitFor?: number;
-  actions?: ActionOption[];
 }
 
 export interface CrawlOptions {
@@ -326,8 +324,6 @@ export interface MapOptions {
   timeout?: number;
   integration?: string;
   location?: LocationConfig;
-  waitFor?: number;
-  actions?: ActionOption[];
 }
 
 export interface ExtractResponse {
