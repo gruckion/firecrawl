@@ -2,11 +2,27 @@ import { Request, Response } from "express";
 import { authenticateUser } from "../auth";
 import { RateLimiterMode } from "../../../src/types";
 import { logger } from "../../../src/lib/logger";
-import { getCrawl, saveCrawl } from "../../../src/lib/crawl-redis";
+import {
+  getCrawl,
+  saveCrawl,
+  isCrawlKickoffFinished,
+} from "../../../src/lib/crawl-redis";
 import * as Sentry from "@sentry/node";
 import { configDotenv } from "dotenv";
 import { redisEvictConnection } from "../../../src/services/redis";
 configDotenv();
+
+async function isCrawlFinished(id: string) {
+  await redisEvictConnection.expire(
+    "crawl:" + id + ":kickoff:finish",
+    24 * 60 * 60,
+  );
+  return (
+    (await redisEvictConnection.scard("crawl:" + id + ":jobs_done")) ===
+      (await redisEvictConnection.scard("crawl:" + id + ":jobs")) &&
+    (await isCrawlKickoffFinished(id))
+  );
+}
 
 export async function crawlCancelController(req: Request, res: Response) {
   try {
@@ -51,6 +67,17 @@ export async function crawlCancelController(req: Request, res: Response) {
     // check if the job belongs to the team
     if (sc.team_id !== team_id) {
       return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const isCompleted = await isCrawlFinished(req.params.jobId);
+      if (isCompleted) {
+        return res.status(409).json({
+          error: "Cannot cancel job that has already completed",
+        });
+      }
+    } catch (error) {
+      logger.error("Error checking crawl completion status", error);
     }
 
     try {
