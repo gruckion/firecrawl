@@ -137,4 +137,7 @@ SELECT cron.schedule('nuq_queue_scrape_concurrency_sync', '*/5 * * * *', $$
       WHERE nuq.queue_scrape.owner_id = nuq.queue_scrape_owner_concurrency.id
         AND nuq.queue_scrape.status = 'active'::nuq.job_status
     );
+
+  UPDATE nuq.queue_scrape_owner_concurrency
+    SET max_concurrency = (SELECT nuq_queue_scrape_owner_resolve_max_concurrency(nuq.queue_scrape_owner_concurrency.id));
 $$);
