@@ -3,6 +3,7 @@ import { RateLimiterMode } from "../types";
 import expressWs from "express-ws";
 import { searchController } from "../controllers/v2/search";
 import { x402SearchController } from "../controllers/v2/x402-search";
+import { x402ScrapeController } from "../controllers/v2/x402-scrape";
 import { scrapeController } from "../controllers/v2/scrape";
 import { batchScrapeController } from "../controllers/v2/batch-scrape";
 import { crawlController } from "../controllers/v2/crawl";
@@ -147,6 +148,89 @@ v2Router.use(
                 },
               },
               creditsUsed: { type: "number" },
+            },
+          },
+        },
+      },
+      "POST /x402/scrape": {
+        price: process.env.X402_ENDPOINT_PRICE_USD as string,
+        network: process.env.X402_NETWORK as
+          | "base-sepolia"
+          | "base"
+          | "avalanche-fuji"
+          | "avalanche"
+          | "iotex",
+        config: {
+          discoverable: true,
+          description:
+            "The scrape endpoint extracts structured content from any URL using Firecrawl's advanced scraping engine. Requires micropayment via X402 protocol",
+          mimeType: "application/json",
+          maxTimeoutSeconds: 120,
+          inputSchema: {
+            body: {
+              url: {
+                type: "string",
+                description: "URL to scrape",
+                required: true,
+              },
+              formats: {
+                type: "array",
+                description:
+                  "Output formats (markdown, html, rawHtml, links, screenshot, etc.)",
+                required: false,
+              },
+              onlyMainContent: {
+                type: "boolean",
+                description: "Extract only the main content",
+                required: false,
+              },
+              includeTags: {
+                type: "array",
+                description: "HTML tags to include",
+                required: false,
+              },
+              excludeTags: {
+                type: "array",
+                description: "HTML tags to exclude",
+                required: false,
+              },
+              waitFor: {
+                type: "number",
+                description: "Wait time in milliseconds before scraping",
+                required: false,
+              },
+              timeout: {
+                type: "number",
+                description: "Request timeout in milliseconds",
+                required: false,
+              },
+            },
+          },
+          outputSchema: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  markdown: { type: "string" },
+                  html: { type: "string" },
+                  rawHtml: { type: "string" },
+                  links: { type: "array", items: { type: "string" } },
+                  screenshot: { type: "string" },
+                  metadata: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      description: { type: "string" },
+                      language: { type: "string" },
+                      sourceURL: { type: "string" },
+                      statusCode: { type: "number" },
+                    },
+                  },
+                },
+              },
+              scrape_id: { type: "string" },
             },
           },
         },
@@ -315,4 +399,12 @@ v2Router.post(
   countryCheck,
   blocklistMiddleware,
   wrap(x402SearchController),
+);
+
+v2Router.post(
+  "/x402/scrape",
+  authMiddleware(RateLimiterMode.Scrape),
+  countryCheck,
+  blocklistMiddleware,
+  wrap(x402ScrapeController),
 );
