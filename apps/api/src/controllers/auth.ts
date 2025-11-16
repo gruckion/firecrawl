@@ -171,7 +171,6 @@ export async function getACUC(
   if (useCache) {
     const cachedACUC = await getValue(cacheKeyACUC);
     if (cachedACUC !== null) {
-      console.log(cachedACUC);
       return JSON.parse(cachedACUC);
     }
   }
