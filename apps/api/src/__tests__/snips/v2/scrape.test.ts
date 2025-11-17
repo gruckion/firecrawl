@@ -1910,4 +1910,26 @@ describe("Attribute formats", () => {
       scrapeTimeout,
     );
   });
+
+  describeIf(ALLOW_TEST_SUITE_WEBSITE)("Job ID in response", () => {
+    it.concurrent(
+      "returns job ID in id field",
+      async () => {
+        const response = await scrapeRaw(
+          {
+            url: base,
+          },
+          identity,
+        );
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.id).toBeDefined();
+        expect(typeof response.body.id).toBe("string");
+        expect(response.body.data.metadata.scrapeId).toBeDefined();
+        expect(response.body.id).toBe(response.body.data.metadata.scrapeId);
+      },
+      scrapeTimeout,
+    );
+  });
 });

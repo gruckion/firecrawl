@@ -178,6 +178,7 @@ export async function mapController(
     success: true as const,
     links: result.mapResults,
     ...(warning && { warning }),
+    id: result.job_id,
   };
 
   return res.status(200).json(response);

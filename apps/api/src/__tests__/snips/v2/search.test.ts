@@ -4,8 +4,10 @@ import {
   HAS_PROXY,
   HAS_SEARCH,
   TEST_PRODUCTION,
+  TEST_API_URL,
 } from "../lib";
 import { search, idmux, Identity } from "./lib";
+import request from "supertest";
 
 let identity: Identity;
 
@@ -211,6 +213,26 @@ describeIf(TEST_PRODUCTION || HAS_SEARCH || HAS_PROXY)("Search tests", () => {
       );
       expect(res.web).toBeDefined();
       expect(res.web?.length).toBeGreaterThan(0);
+    },
+    60000,
+  );
+
+  it.concurrent(
+    "returns job ID in id field",
+    async () => {
+      const response = await request(TEST_API_URL)
+        .post("/v2/search")
+        .set("Authorization", `Bearer ${identity.apiKey}`)
+        .set("Content-Type", "application/json")
+        .send({
+          query: "firecrawl",
+        });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.id).toBeDefined();
+      expect(typeof response.body.id).toBe("string");
+      expect(response.body.data).toBeDefined();
     },
     60000,
   );

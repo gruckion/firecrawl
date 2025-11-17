@@ -1061,6 +1061,7 @@ export type ScrapeResponse =
       warning?: string;
       data: Document;
       scrape_id?: string;
+      id?: string;
     };
 
 export interface URLTrace {
@@ -1121,6 +1122,7 @@ export type MapResponse =
       success: true;
       links: string[];
       scrape_id?: string;
+      id?: string;
     };
 
 export type CrawlStatusParams = {
@@ -1514,6 +1516,7 @@ export type SearchResponse =
       success: true;
       warning?: string;
       data: Document[];
+      id?: string;
     };
 
 export type TokenUsage = {

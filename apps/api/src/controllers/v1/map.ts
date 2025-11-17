@@ -478,6 +478,7 @@ export async function mapController(
     success: true as const,
     links: result.links,
     scrape_id: result.scrape_id,
+    id: result.job_id,
   };
 
   return res.status(200).json(response);

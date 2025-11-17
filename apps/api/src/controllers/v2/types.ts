@@ -969,6 +969,7 @@ export type ScrapeResponse =
       warning?: string;
       data: Document;
       scrape_id?: string;
+      id?: string;
     };
 
 export interface URLTrace {
@@ -1037,6 +1038,7 @@ export type MapResponse =
       success: true;
       links?: MapDocument[];
       warning?: string;
+      id?: string;
     };
 
 export type CrawlStatusParams = {
@@ -1621,12 +1623,14 @@ export type SearchResponse =
       warning?: string;
       data: Document[];
       creditsUsed: number;
+      id?: string;
     }
   | {
       success: true;
       warning?: string;
       data: import("../../lib/entities").SearchV2Response;
       creditsUsed: number;
+      id?: string;
     }
   | {
       success: true;
@@ -1638,6 +1642,7 @@ export type SearchResponse =
         images?: string[];
       };
       creditsUsed: number;
+      id?: string;
     };
 
 export type TokenUsage = {
