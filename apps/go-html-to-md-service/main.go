@@ -18,6 +18,7 @@ const (
 	defaultShutdownTimeout = 30 * time.Second
 	defaultReadTimeout     = 30 * time.Second
 	defaultWriteTimeout    = 30 * time.Second
+	maxUploadSize = 36 * 1024 * 1024
 )
 
 func main() {
@@ -39,6 +40,14 @@ func main() {
 
 	// Setup router
 	router := mux.NewRouter()
+
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	handler.RegisterRoutes(router)
 
 	// Create server
@@ -75,4 +84,3 @@ func main() {
 
 	log.Info().Msg("Server exited")
 }
-
