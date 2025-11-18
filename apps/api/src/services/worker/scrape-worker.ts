@@ -188,10 +188,6 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
       throw new ScrapeJobTimeoutError("Scrape timed out");
     }
 
-    // const signal = remainingTime
-    //   ? AbortSignal.timeout(remainingTime)
-    //   : undefined;
-
     if (job.data.crawl_id) {
       const sc = (await getCrawl(job.data.crawl_id)) as StoredCrawl;
       if (sc && sc.cancelled) {
