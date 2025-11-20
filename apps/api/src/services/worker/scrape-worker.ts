@@ -531,7 +531,7 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
 
       doc.metadata.creditsUsed = credits_billed ?? undefined;
 
-      await logJob(
+      const logPromise = logJob(
         {
           job_id: job.id,
           success: true,
@@ -556,7 +556,18 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
         },
         false,
         job.data.internalOptions?.bypassBilling ?? false,
+        !job.data.skipNuq,
       );
+
+      if (!job.data.skipNuq) {
+        await logPromise;
+      } else {
+        logPromise.catch(error => {
+          logger.error(
+            `Failed to log job for team ${job.data.team_id}: ${error}`,
+          );
+        });
+      }
     }
 
     logger.info(`🐂 Job done ${job.id}`);

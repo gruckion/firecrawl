@@ -18,6 +18,7 @@ export async function logJob(
   job: FirecrawlJob,
   force: boolean = false,
   bypassLogging: boolean = false,
+  requiresBlob = false,
 ) {
   const useDbAuthentication = process.env.USE_DB_AUTHENTICATION === "true";
   if (!useDbAuthentication) {
@@ -38,7 +39,7 @@ export async function logJob(
 
   try {
     // Save to GCS if configured
-    if (process.env.GCS_BUCKET_NAME) {
+    if (process.env.GCS_BUCKET_NAME && (!zeroDataRetention || requiresBlob)) {
       await withSpan("firecrawl-log-job-save-to-gcs", async span => {
         setSpanAttributes(span, {
           "log_job.operation": "save_to_gcs",
