@@ -255,6 +255,7 @@ export async function searchController(
       api_version: "v2",
       team_id: req.auth.team_id,
       origin: req.body.origin ?? "api",
+      integration: req.body.integration,
       target_hint: req.body.query,
       zeroDataRetention: isZDROrAnon ?? false, // not supported for search
     });
