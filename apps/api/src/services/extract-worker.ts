@@ -131,8 +131,7 @@ const processExtractJobInternal = async (
   } catch (error) {
     logger.error(`🚫 Job errored ${job.id} - ${error}`, { error });
 
-    // TransportableErrors are flow control - filter them out
-    // DB errors, uncaught exceptions, etc. will be captured
+    // Filter out TransportableErrors (flow control)
     if (!(error instanceof TransportableError)) {
       Sentry.captureException(error, {
         data: {

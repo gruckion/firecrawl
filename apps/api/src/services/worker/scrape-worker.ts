@@ -607,8 +607,7 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
     } else {
       logger.error(`🐂 Job errored ${job.id} - ${error}`, { error });
 
-      // TransportableErrors are flow control (DNS, SSL, site errors, etc.)
-      // Real infrastructure failures are captured at their source
+      // Filter out TransportableErrors (flow control)
       if (!(error instanceof TransportableError)) {
         Sentry.captureException(error, {
           data: {
@@ -1203,8 +1202,7 @@ async function processJobWithTracing(job: NuQJob<ScrapeJobData>, logger: any) {
   } catch (error) {
     logger.warn("Job failed", { error });
 
-    // TransportableErrors are flow control - filter them out
-    // Real infrastructure failures are captured at their source
+    // Filter out TransportableErrors (flow control)
     if (!(error instanceof TransportableError)) {
       Sentry.captureException(error);
     }

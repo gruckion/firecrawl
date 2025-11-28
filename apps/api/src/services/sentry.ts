@@ -17,15 +17,11 @@ if (process.env.SENTRY_DSN) {
     beforeSend(event, hint) {
       const error = hint.originalException;
 
-      // Defense in depth: Filter TransportableErrors and common network errors
-      // TransportableErrors are flow control - workers filter these, but this catches any that slip through
-      // Critical issues like NoEnginesLeftError are captured explicitly at their source
       if (error && typeof error === "object") {
         const errorCode = "code" in error ? String(error.code) : "";
 
-        // Filter all TransportableError codes (they're flow control, not bugs)
         const transportableErrorCodes = [
-          "SCRAPE_ALL_ENGINES_FAILED", // Captured explicitly when thrown
+          "SCRAPE_ALL_ENGINES_FAILED",
           "SCRAPE_DNS_RESOLUTION_ERROR",
           "SCRAPE_SITE_ERROR",
           "SCRAPE_SSL_ERROR",
@@ -42,32 +38,14 @@ if (process.env.SENTRY_DSN) {
           "MAP_TIMEOUT",
           "SCRAPE_UNKNOWN_ERROR",
           "SCRAPE_RACED_REDIRECT_ERROR",
-          "SCRAPE_SITEMAP_ERROR", // Sitemap parse/load errors
-          "CRAWL_DENIAL", // URLs blocked by crawl rules (robots.txt, etc.)
+          "SCRAPE_SITEMAP_ERROR",
+          "CRAWL_DENIAL",
         ];
 
         if (transportableErrorCodes.includes(errorCode)) {
           return null;
         }
 
-        // Filter raw network errors that might not be wrapped in TransportableError
-        const networkErrorCodes = [
-          "ENOTFOUND",
-          "EAI_AGAIN",
-          "ECONNREFUSED",
-          "ETIMEDOUT",
-          "EHOSTUNREACH",
-          "ENETUNREACH",
-          "ECONNRESET",
-          "ECONNABORTED",
-          "EPIPE",
-        ];
-
-        if (networkErrorCodes.includes(errorCode)) {
-          return null;
-        }
-
-        // Filter Zod validation errors for invalid URLs (user input errors)
         if (error.constructor?.name === "ZodError") {
           const errorMessage = "message" in error ? String(error.message) : "";
           if (
