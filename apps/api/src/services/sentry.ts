@@ -15,7 +15,7 @@ if (process.env.SENTRY_DSN) {
     environment: process.env.SENTRY_ENVIRONMENT ?? "production",
     skipOpenTelemetrySetup: true,
     beforeSend(event, hint) {
-      const error = hint.originalException;
+      const error = hint?.originalException;
 
       if (error && typeof error === "object") {
         const errorCode = "code" in error ? String(error.code) : "";
