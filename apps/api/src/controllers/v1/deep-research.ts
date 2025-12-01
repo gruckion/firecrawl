@@ -5,6 +5,7 @@ import { getDeepResearchQueue } from "../../services/queue-service";
 import * as Sentry from "@sentry/node";
 import { saveDeepResearch } from "../../lib/deep-research/deep-research-redis";
 import { z } from "zod";
+import { includesFormat } from "../../lib/format-utils";
 
 const deepResearchRequestSchema = z
   .object({
@@ -45,7 +46,7 @@ const deepResearchRequestSchema = z
   })
   .refine(
     obj => {
-      const hasJsonFormat = obj.formats?.includes("json");
+      const hasJsonFormat = includesFormat(obj.formats, "json");
       const hasJsonOptions = obj.jsonOptions !== undefined;
       return (
         (hasJsonFormat && hasJsonOptions) || (!hasJsonFormat && !hasJsonOptions)

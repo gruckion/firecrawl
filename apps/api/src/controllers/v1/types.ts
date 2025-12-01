@@ -13,6 +13,7 @@ import { getURLDepth } from "../../scraper/WebScraper/utils/maxDepthUtils";
 import Ajv from "ajv";
 import { ErrorCodes } from "../../lib/error";
 import { integrationSchema } from "../../utils/integration";
+import { includesFormat } from "../../lib/format-utils";
 import { webhookSchema } from "../../services/webhook/schema";
 import { BrandingProfile } from "../../types/branding";
 
@@ -540,9 +541,9 @@ const extractRefineOpts = {
 const extractTransform = (obj: ScrapeOptions) => {
   // Handle timeout
   if (
-    (obj.formats?.includes("extract") ||
+    (includesFormat(obj.formats, "extract") ||
       obj.extract ||
-      obj.formats?.includes("json") ||
+      includesFormat(obj.formats, "json") ||
       obj.jsonOptions) &&
     obj.timeout === 30000
   ) {
@@ -550,13 +551,13 @@ const extractTransform = (obj: ScrapeOptions) => {
   }
 
   if (
-    obj.formats?.includes("changeTracking") &&
+    includesFormat(obj.formats, "changeTracking") &&
     (obj.waitFor === undefined || obj.waitFor < 5000)
   ) {
     obj = { ...obj, waitFor: 5000 };
   }
 
-  if (obj.formats?.includes("changeTracking") && obj.timeout === 30000) {
+  if (includesFormat(obj.formats, "changeTracking") && obj.timeout === 30000) {
     obj = { ...obj, timeout: 60000 };
   }
 
@@ -571,8 +572,8 @@ const extractTransform = (obj: ScrapeOptions) => {
     obj = { ...obj, timeout: 120000 };
   }
 
-  if (obj.formats?.includes("json")) {
-    obj.formats.push("extract");
+  if (includesFormat(obj.formats, "json")) {
+    obj.formats.push({ type: "extract" } as any);
   }
 
   // Convert JSON options to extract options if needed
@@ -622,9 +623,9 @@ const waitForRefine = (obj?: ScrapeOptionsBase): boolean => {
 };
 
 const extractRefine = (obj: ScrapeOptionsBase): boolean => {
-  const hasExtractFormat = obj.formats?.includes("extract");
+  const hasExtractFormat = includesFormat(obj.formats, "extract");
   const hasExtractOptions = obj.extract !== undefined;
-  const hasJsonFormat = obj.formats?.includes("json");
+  const hasJsonFormat = includesFormat(obj.formats, "json");
   const hasJsonOptions = obj.jsonOptions !== undefined;
   return (
     ((hasExtractFormat && hasExtractOptions) ||

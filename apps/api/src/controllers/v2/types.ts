@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { protocolIncluded, checkUrl } from "../../lib/validateUrl";
 import { countries } from "../../lib/validate-country";
+import { includesFormat } from "../../lib/format-utils";
 import {
   ExtractorOptions,
   PageOptions,
@@ -1344,9 +1345,9 @@ export function fromV1ScrapeOptions(
   // Check json first since when user specifies "json", both "json" and "extract" are present
   // When user specifies "extract", only "extract" is present
   let v1OriginalFormat: "extract" | "json" | undefined;
-  if (v1ScrapeOptions.formats.includes("json")) {
+  if (includesFormat(v1ScrapeOptions.formats as any, "json")) {
     v1OriginalFormat = "json";
-  } else if (v1ScrapeOptions.formats.includes("extract")) {
+  } else if (includesFormat(v1ScrapeOptions.formats as any, "extract")) {
     v1OriginalFormat = "extract";
   }
 
@@ -1380,7 +1381,9 @@ export function fromV1ScrapeOptions(
                 schema: opts.schema,
                 prompt: opts.prompt,
               };
-              return v1ScrapeOptions.formats.includes("extract") ? null : fmt;
+              return includesFormat(v1ScrapeOptions.formats as any, "extract")
+                ? null
+                : fmt;
             }
             return null;
           } else if (x === "changeTracking") {
