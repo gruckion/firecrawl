@@ -10,11 +10,21 @@ dotenv.config();
 const TEST_URL = "http://127.0.0.1:3002";
 
 describe("E2E Tests for API Routes with No Authentication", () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  let originalConfig: Partial<typeof config>;
 
-  // save original process.env
+  // save original config values
   beforeAll(() => {
-    originalEnv = { ...process.env };
+    originalConfig = {
+      USE_DB_AUTHENTICATION: config.USE_DB_AUTHENTICATION,
+      SUPABASE_ANON_TOKEN: config.SUPABASE_ANON_TOKEN,
+      SUPABASE_URL: config.SUPABASE_URL,
+      SUPABASE_SERVICE_TOKEN: config.SUPABASE_SERVICE_TOKEN,
+      OPENAI_API_KEY: config.OPENAI_API_KEY,
+      BULL_AUTH_KEY: config.BULL_AUTH_KEY,
+      PLAYWRIGHT_MICROSERVICE_URL: config.PLAYWRIGHT_MICROSERVICE_URL,
+      LLAMAPARSE_API_KEY: config.LLAMAPARSE_API_KEY,
+      TEST_API_KEY: config.TEST_API_KEY,
+    };
     config.USE_DB_AUTHENTICATION = false;
     config.SUPABASE_ANON_TOKEN = "";
     config.SUPABASE_URL = "";
@@ -26,9 +36,9 @@ describe("E2E Tests for API Routes with No Authentication", () => {
     config.TEST_API_KEY = "";
   });
 
-  // restore original process.env
+  // restore original config values
   afterAll(() => {
-    process.env = originalEnv;
+    Object.assign(config, originalConfig);
   });
 
   describe("GET /e2e-test", () => {

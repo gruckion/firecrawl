@@ -505,6 +505,8 @@ async function setupNuqPostgres(): Promise<Services["nuqPostgres"]> {
     const dbUrl = `postgresql://${encodeURIComponent(POSTGRES_USER)}:${encodeURIComponent(POSTGRES_PASSWORD)}@${POSTGRES_HOST}:${POSTGRES_PORT}/${encodeURIComponent(POSTGRES_DB)}`;
     config.NUQ_DATABASE_URL = dbUrl;
     config.NUQ_DATABASE_URL_LISTEN = dbUrl;
+    process.env.NUQ_DATABASE_URL = dbUrl;
+    process.env.NUQ_DATABASE_URL_LISTEN = dbUrl;
     logger.success(
       "NUQ PostgreSQL connection configured with encoded credentials",
     );
@@ -541,6 +543,8 @@ async function setupNuqPostgres(): Promise<Services["nuqPostgres"]> {
   const dbUrl = `postgresql://${encodeURIComponent(POSTGRES_USER)}:${encodeURIComponent(POSTGRES_PASSWORD)}@localhost:5432/${encodeURIComponent(POSTGRES_DB)}`;
   config.NUQ_DATABASE_URL = dbUrl;
   config.NUQ_DATABASE_URL_LISTEN = dbUrl;
+  process.env.NUQ_DATABASE_URL = dbUrl;
+  process.env.NUQ_DATABASE_URL_LISTEN = dbUrl;
 
   logger.success("NUQ PostgreSQL container is ready");
 
