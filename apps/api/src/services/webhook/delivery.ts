@@ -3,7 +3,7 @@ import { config } from "../../config";
 import { createHmac } from "crypto";
 import { logger as _logger, logger } from "../../lib/logger";
 import {
-  getSecureDispatcher,
+  getSecureDispatcherNoCookies,
   isIPPrivate,
 } from "../../scraper/scrapeURL/engines/utils/safeFetch";
 import { WebhookConfig, WebhookEvent, WebhookEventDataMap } from "./types";
@@ -111,7 +111,7 @@ export class WebhookSender {
         method: "POST",
         headers,
         body: payloadString,
-        dispatcher: getSecureDispatcher(),
+        dispatcher: getSecureDispatcherNoCookies(),
         signal: abortController.signal,
       });
 

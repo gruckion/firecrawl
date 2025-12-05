@@ -98,8 +98,12 @@ export async function scrapeController(
       0,
     );
 
+  let lockTime: number | null = null;
+  let concurrencyLimited: boolean = false;
+
   let timeoutHandle: NodeJS.Timeout | null = null;
   let doc: Document | null = null;
+
   try {
     const lockStart = Date.now();
     const aborter = new AbortController();
@@ -122,11 +126,13 @@ export async function scrapeController(
           basePriority: 10,
         });
 
-        const lockTime = Date.now() - lockStart;
+        lockTime = Date.now() - lockStart;
+        concurrencyLimited = limited;
 
         logger.debug(`Lock acquired for team: ${req.auth.team_id}`, {
           teamId: req.auth.team_id,
           lockTime,
+          limited,
         });
 
         const job: NuQJob<ScrapeJobData> = {
@@ -242,11 +248,22 @@ export async function scrapeController(
     totalWait,
     usedLlm,
     formats: req.body.formats,
+    concurrencyLimited,
+    concurrencyQueueDurationMs: lockTime || undefined,
   });
 
   return res.status(200).json({
     success: true,
-    data: doc!,
+    data: {
+      ...doc!,
+      metadata: {
+        ...doc!.metadata,
+        concurrencyLimited,
+        concurrencyQueueDurationMs: concurrencyLimited
+          ? lockTime || 0
+          : undefined,
+      },
+    },
     scrape_id: origin?.includes("website") ? jobId : undefined,
   });
 }

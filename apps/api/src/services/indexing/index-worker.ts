@@ -41,6 +41,7 @@ import { withSpan, setSpanAttributes } from "../../lib/otel-tracer";
 import { crawlGroup } from "../worker/nuq";
 import { getACUCTeam } from "../../controllers/auth";
 import { supabase_service } from "../supabase";
+import { processEngpickerJob } from "../../lib/engpicker";
 
 const workerLockDuration = config.WORKER_LOCK_DURATION;
 const workerStalledCheckInterval = config.WORKER_STALLED_CHECK_INTERVAL;
@@ -768,6 +769,17 @@ const DOMAIN_FREQUENCY_INTERVAL = 10000;
     5 * 60 * 1000,
   );
 
+  const engpickerPromise = (async () => {
+    while (!isShuttingDown) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        await processEngpickerJob();
+      } catch (e) {
+        logger.error("Error processing engpicker job", { error: e });
+      }
+    }
+  })();
+
   // Search indexing is now handled by separate search service
   // The search service has its own worker that processes the queue
   // This worker no longer needs to process search index jobs
@@ -790,7 +802,11 @@ const DOMAIN_FREQUENCY_INTERVAL = 10000;
   }
 
   // Wait for all workers to complete (which should only happen on shutdown)
-  await Promise.all([billingWorkerPromise, precrawlWorkerPromise]);
+  await Promise.all([
+    billingWorkerPromise,
+    precrawlWorkerPromise,
+    engpickerPromise,
+  ]);
 
   clearInterval(indexInserterInterval);
   clearInterval(webhookInserterInterval);

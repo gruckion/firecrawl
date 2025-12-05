@@ -10,8 +10,8 @@ if (config.SENTRY_DSN) {
     integrations: integrations => [
       ...integrations,
       Sentry.vercelAIIntegration({
-        recordInputs: true,
-        recordOutputs: true,
+        recordInputs: false,
+        recordOutputs: false,
       }),
     ],
     tracesSampler: samplingContext => {
