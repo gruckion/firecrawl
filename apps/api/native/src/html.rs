@@ -728,6 +728,27 @@ pub async fn extract_attributes(
   res.map_err(to_napi_err)
 }
 
+/// Compute a canonical key for URL deduplication.
+/// For HTTP(S) URLs, strips query string and fragment to deduplicate
+/// images that differ only by cache-busting parameters (common in carousels).
+/// For data: and blob: URLs, returns the URL as-is.
+fn canonical_image_key(url: &str) -> String {
+  // Don't canonicalize data: or blob: URLs
+  if url.starts_with("data:") || url.starts_with("blob:") {
+    return url.to_string();
+  }
+
+  // Try to parse and strip query/fragment for http/https URLs
+  if let Ok(mut parsed) = Url::parse(url) {
+    parsed.set_query(None);
+    parsed.set_fragment(None);
+    return parsed.to_string();
+  }
+
+  // If parsing fails, return as-is
+  url.to_string()
+}
+
 fn _extract_images(
   html: &str,
   base_url: &str,
@@ -736,7 +757,19 @@ fn _extract_images(
   let base_url = Url::parse(base_url)?;
   let base_href = _extract_base_href_from_document(&document, &base_url)?;
   let base_href_url = Url::parse(&base_href)?;
-  let mut images = HashSet::<String>::new();
+
+  // Use a HashSet of canonical keys to deduplicate images that differ only
+  // by query params or fragments (common in infinite scroll carousels)
+  let mut seen_canonical_keys = HashSet::<String>::new();
+  let mut images: Vec<String> = Vec::new();
+
+  // Helper to add an image URL, deduplicating by canonical key
+  let mut add_image = |url: String| {
+    let canonical_key = canonical_image_key(&url);
+    if seen_canonical_keys.insert(canonical_key) {
+      images.push(url);
+    }
+  };
 
   let resolve_image_url = |src: &str| -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     if src.starts_with("data:") || src.starts_with("blob:") {
@@ -767,13 +800,13 @@ fn _extract_images(
 
     if let Some(src) = attrs.get("src") {
       if let Ok(resolved) = resolve_image_url(src) {
-        images.insert(resolved);
+        add_image(resolved);
       }
     }
 
     if let Some(data_src) = attrs.get("data-src") {
       if let Ok(resolved) = resolve_image_url(data_src) {
-        images.insert(resolved);
+        add_image(resolved);
       }
     }
 
@@ -782,7 +815,7 @@ fn _extract_images(
         if let Some(url) = part.split_whitespace().next() {
           if !url.is_empty() {
             if let Ok(resolved) = resolve_image_url(url) {
-              images.insert(resolved);
+              add_image(resolved);
             }
           }
         }
@@ -805,7 +838,7 @@ fn _extract_images(
         if let Some(url) = part.split_whitespace().next() {
           if !url.is_empty() {
             if let Ok(resolved) = resolve_image_url(url) {
-              images.insert(resolved);
+              add_image(resolved);
             }
           }
         }
@@ -828,7 +861,7 @@ fn _extract_images(
       for element in elements {
         if let Some(content) = element.attributes.borrow().get("content") {
           if let Ok(resolved) = resolve_image_url(content) {
-            images.insert(resolved);
+            add_image(resolved);
           }
         }
       }
@@ -847,7 +880,7 @@ fn _extract_images(
       for element in elements {
         if let Some(href) = element.attributes.borrow().get("href") {
           if let Ok(resolved) = resolve_image_url(href) {
-            images.insert(resolved);
+            add_image(resolved);
           }
         }
       }
@@ -859,12 +892,13 @@ fn _extract_images(
     for video in video_elements {
       if let Some(poster) = video.attributes.borrow().get("poster") {
         if let Ok(resolved) = resolve_image_url(poster) {
-          images.insert(resolved);
+          add_image(resolved);
         }
       }
     }
   }
 
+  // Filter out invalid URLs (javascript:, empty, unparseable)
   let filtered_images: Vec<String> = images
     .into_iter()
     .filter(|url| !url.to_lowercase().starts_with("javascript:"))

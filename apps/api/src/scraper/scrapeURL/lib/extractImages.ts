@@ -2,6 +2,30 @@ import { load } from "cheerio";
 import { logger } from "../../../lib/logger";
 import { extractImages as _extractImages } from "@mendable/firecrawl-rs";
 
+/**
+ * Compute a canonical key for URL deduplication.
+ * For HTTP(S) URLs, strips query string and fragment to deduplicate
+ * images that differ only by cache-busting parameters (common in carousels).
+ * For data: and blob: URLs, returns the URL as-is.
+ */
+function canonicalImageKey(url: string): string {
+  // Don't canonicalize data: or blob: URLs
+  if (url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+
+  // Try to parse and strip query/fragment for http/https URLs
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.href;
+  } catch {
+    // If parsing fails, return as-is
+    return url;
+  }
+}
+
 function resolveImageUrl(
   src: string,
   baseUrl: string,
@@ -59,7 +83,20 @@ async function extractImagesCheerio(
 ): Promise<string[]> {
   const $ = load(html);
   const baseHref = $("base[href]").first().attr("href") || "";
-  const images: Set<string> = new Set();
+
+  // Use a Set of canonical keys to deduplicate images that differ only
+  // by query params or fragments (common in infinite scroll carousels)
+  const seenCanonicalKeys: Set<string> = new Set();
+  const images: string[] = [];
+
+  // Helper to add an image URL, deduplicating by canonical key
+  const addImage = (url: string) => {
+    const canonicalKey = canonicalImageKey(url);
+    if (!seenCanonicalKeys.has(canonicalKey)) {
+      seenCanonicalKeys.add(canonicalKey);
+      images.push(url);
+    }
+  };
 
   // Extract from <img> tags
   $("img").each((_, element) => {
@@ -67,7 +104,7 @@ async function extractImagesCheerio(
     if (src) {
       const resolvedUrl = resolveImageUrl(src.trim(), baseUrl, baseHref);
       if (resolvedUrl) {
-        images.add(resolvedUrl);
+        addImage(resolvedUrl);
       }
     }
 
@@ -76,7 +113,7 @@ async function extractImagesCheerio(
     if (dataSrc) {
       const resolvedUrl = resolveImageUrl(dataSrc.trim(), baseUrl, baseHref);
       if (resolvedUrl) {
-        images.add(resolvedUrl);
+        addImage(resolvedUrl);
       }
     }
 
@@ -89,7 +126,7 @@ async function extractImagesCheerio(
         if (url) {
           const resolvedUrl = resolveImageUrl(url, baseUrl, baseHref);
           if (resolvedUrl) {
-            images.add(resolvedUrl);
+            addImage(resolvedUrl);
           }
         }
       });
@@ -105,7 +142,7 @@ async function extractImagesCheerio(
         if (url) {
           const resolvedUrl = resolveImageUrl(url, baseUrl, baseHref);
           if (resolvedUrl) {
-            images.add(resolvedUrl);
+            addImage(resolvedUrl);
           }
         }
       });
@@ -126,7 +163,7 @@ async function extractImagesCheerio(
     if (src) {
       const resolvedUrl = resolveImageUrl(src.trim(), baseUrl, baseHref);
       if (resolvedUrl) {
-        images.add(resolvedUrl);
+        addImage(resolvedUrl);
       }
     }
   });
@@ -139,7 +176,7 @@ async function extractImagesCheerio(
     if (href) {
       const resolvedUrl = resolveImageUrl(href.trim(), baseUrl, baseHref);
       if (resolvedUrl) {
-        images.add(resolvedUrl);
+        addImage(resolvedUrl);
       }
     }
   });
@@ -160,7 +197,7 @@ async function extractImagesCheerio(
             baseHref,
           );
           if (resolvedUrl) {
-            images.add(resolvedUrl);
+            addImage(resolvedUrl);
           }
         }
       });
@@ -173,13 +210,13 @@ async function extractImagesCheerio(
     if (poster) {
       const resolvedUrl = resolveImageUrl(poster.trim(), baseUrl, baseHref);
       if (resolvedUrl) {
-        images.add(resolvedUrl);
+        addImage(resolvedUrl);
       }
     }
   });
 
-  // Filter out invalid URLs and convert Set to Array
-  return Array.from(images).filter(url => {
+  // Filter out invalid URLs (javascript:, empty, unparseable)
+  return images.filter(url => {
     try {
       // Skip javascript: URLs for security
       if (url.toLowerCase().startsWith("javascript:")) {

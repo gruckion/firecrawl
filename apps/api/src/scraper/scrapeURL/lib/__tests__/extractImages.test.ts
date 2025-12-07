@@ -212,6 +212,86 @@ describe("extractImages", () => {
     expect(duplicateCount).toBe(1);
   });
 
+  it("should deduplicate carousel images with different query params (cache-busting)", async () => {
+    // This simulates infinite scroll carousels that duplicate logos with different cache-busting params
+    const html = `
+      <html>
+        <body>
+          <div class="carousel">
+            <img src="logo.png?v=1" alt="Logo 1">
+            <img src="logo.png?v=2" alt="Logo 2">
+            <img src="logo.png?v=3" alt="Logo 3">
+            <img src="logo.png?cb=abc123" alt="Logo 4">
+            <img src="logo.png" alt="Logo 5">
+          </div>
+        </body>
+      </html>
+    `;
+
+    const images = await extractImages(html, baseUrl);
+
+    // All these should be deduplicated to a single entry since they have the same origin+path
+    const logoCount = images.filter(img => img.includes("logo.png")).length;
+    expect(logoCount).toBe(1);
+    // The first occurrence should be preserved (with its original query params)
+    expect(images).toContain("https://example.com/logo.png?v=1");
+  });
+
+  it("should deduplicate images with different fragments", async () => {
+    const html = `
+      <html>
+        <body>
+          <img src="image.jpg#section1" alt="Image 1">
+          <img src="image.jpg#section2" alt="Image 2">
+          <img src="image.jpg" alt="Image 3">
+        </body>
+      </html>
+    `;
+
+    const images = await extractImages(html, baseUrl);
+
+    const imageCount = images.filter(img => img.includes("image.jpg")).length;
+    expect(imageCount).toBe(1);
+  });
+
+  it("should NOT deduplicate legitimately different images", async () => {
+    const html = `
+      <html>
+        <body>
+          <img src="logos/client-a.svg" alt="Client A">
+          <img src="logos/client-b.svg" alt="Client B">
+          <img src="logos/client-c.svg" alt="Client C">
+        </body>
+      </html>
+    `;
+
+    const images = await extractImages(html, baseUrl);
+
+    // These are different images and should all be preserved
+    expect(images).toContain("https://example.com/logos/client-a.svg");
+    expect(images).toContain("https://example.com/logos/client-b.svg");
+    expect(images).toContain("https://example.com/logos/client-c.svg");
+    expect(images).toHaveLength(3);
+  });
+
+  it("should preserve data URIs without deduplication issues", async () => {
+    const html = `
+      <html>
+        <body>
+          <img src="data:image/png;base64,abc123" alt="Data URI 1">
+          <img src="data:image/png;base64,def456" alt="Data URI 2">
+        </body>
+      </html>
+    `;
+
+    const images = await extractImages(html, baseUrl);
+
+    // Data URIs should be preserved as-is (not canonicalized)
+    expect(images).toContain("data:image/png;base64,abc123");
+    expect(images).toContain("data:image/png;base64,def456");
+    expect(images).toHaveLength(2);
+  });
+
   it("should handle invalid URLs gracefully", async () => {
     const html = `
       <html>
