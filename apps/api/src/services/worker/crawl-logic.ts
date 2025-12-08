@@ -59,39 +59,33 @@ export async function finishCrawlSuper(job: NuQJob<any>) {
       .filter(x => x !== null);
 
     if (sc.crawlerOptions !== null) {
-      await logCrawl(
-        {
-          id: crawlId,
-          request_id: job.data.requestId ?? crawlId,
-          url: sc.originUrl!,
-          team_id: job.data.team_id,
-          options: sc.crawlerOptions,
-          num_docs: fullDocs.length,
-          credits_cost: fullDocs.reduce(
-            (acc, doc) => acc + (doc?.metadata?.creditsUsed ?? 0),
-            0,
-          ),
-          zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
-          cancelled: sc.cancelled ?? false,
-        },
-        false,
-      );
+      await logCrawl({
+        id: crawlId,
+        request_id: job.data.requestId ?? crawlId,
+        url: sc.originUrl!,
+        team_id: job.data.team_id,
+        options: sc.crawlerOptions,
+        num_docs: fullDocs.length,
+        credits_cost: fullDocs.reduce(
+          (acc, doc) => acc + (doc?.metadata?.creditsUsed ?? 0),
+          0,
+        ),
+        zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
+        cancelled: sc.cancelled ?? false,
+      });
     } else {
-      await logBatchScrape(
-        {
-          id: crawlId,
-          request_id: job.data.requestId ?? crawlId,
-          team_id: job.data.team_id,
-          num_docs: fullDocs.length,
-          credits_cost: fullDocs.reduce(
-            (acc, doc) => acc + (doc?.metadata?.creditsUsed ?? 0),
-            0,
-          ),
-          zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
-          cancelled: sc.cancelled ?? false,
-        },
-        false,
-      );
+      await logBatchScrape({
+        id: crawlId,
+        request_id: job.data.requestId ?? crawlId,
+        team_id: job.data.team_id,
+        num_docs: fullDocs.length,
+        credits_cost: fullDocs.reduce(
+          (acc, doc) => acc + (doc?.metadata?.creditsUsed ?? 0),
+          0,
+        ),
+        zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
+        cancelled: sc.cancelled ?? false,
+      });
     }
 
     // v0 web hooks, call when done with all the data
@@ -147,33 +141,27 @@ export async function finishCrawlSuper(job: NuQJob<any>) {
     }
 
     if (sc.crawlerOptions !== null) {
-      await logCrawl(
-        {
-          id: crawlId,
-          request_id: job.data.requestId ?? crawlId,
-          url: sc.originUrl!,
-          team_id: job.data.team_id,
-          options: sc.crawlerOptions,
-          num_docs: num_docs,
-          credits_cost: credits_billed ?? 0,
-          zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
-          cancelled: sc.cancelled ?? false,
-        },
-        false,
-      );
+      await logCrawl({
+        id: crawlId,
+        request_id: job.data.requestId ?? crawlId,
+        url: sc.originUrl!,
+        team_id: job.data.team_id,
+        options: sc.crawlerOptions,
+        num_docs: num_docs,
+        credits_cost: credits_billed ?? 0,
+        zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
+        cancelled: sc.cancelled ?? false,
+      });
     } else {
-      await logBatchScrape(
-        {
-          id: crawlId,
-          request_id: job.data.requestId ?? crawlId,
-          team_id: job.data.team_id,
-          num_docs: num_docs,
-          credits_cost: credits_billed ?? 0,
-          zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
-          cancelled: sc.cancelled ?? false,
-        },
-        false,
-      );
+      await logBatchScrape({
+        id: crawlId,
+        request_id: job.data.requestId ?? crawlId,
+        team_id: job.data.team_id,
+        num_docs: num_docs,
+        credits_cost: credits_billed ?? 0,
+        zeroDataRetention: sc.zeroDataRetention || job.data.zeroDataRetention,
+        cancelled: sc.cancelled ?? false,
+      });
     }
 
     // v1 web hooks, call when done with no data, but with event completed

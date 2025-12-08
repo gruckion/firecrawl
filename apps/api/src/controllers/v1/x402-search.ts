@@ -323,23 +323,20 @@ export async function x402SearchController(
       time_taken: timeTakenInSeconds,
     });
 
-    logSearch(
-      {
-        id: jobId,
-        request_id: jobId,
-        query: req.body.query,
-        is_successful: true,
-        error: undefined,
-        results: responseData.data,
-        num_results: responseData.data.length,
-        time_taken: timeTakenInSeconds,
-        team_id: req.auth.team_id,
-        options: { ...req.body, scrapeOptions: undefined, query: undefined },
-        credits_cost: responseData.data.length,
-        zeroDataRetention: false, // not supported
-      },
-      false,
-    );
+    logSearch({
+      id: jobId,
+      request_id: jobId,
+      query: req.body.query,
+      is_successful: true,
+      error: undefined,
+      results: responseData.data,
+      num_results: responseData.data.length,
+      time_taken: timeTakenInSeconds,
+      team_id: req.auth.team_id,
+      options: { ...req.body, scrapeOptions: undefined, query: undefined },
+      credits_cost: responseData.data.length,
+      zeroDataRetention: false, // not supported
+    });
 
     return res.status(200).json(responseData);
   } catch (error) {

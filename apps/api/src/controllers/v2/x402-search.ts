@@ -509,27 +509,24 @@ export async function x402SearchController(
           scrapeIds,
         });
 
-        logSearch(
-          {
-            id: jobId,
-            request_id: jobId,
-            query: req.body.query,
-            is_successful: true,
-            error: undefined,
-            results: searchResponse as any,
-            num_results: totalResultsCount,
-            time_taken: timeTakenInSeconds,
-            team_id: req.auth.team_id,
-            options: {
-              ...req.body,
-              query: undefined,
-              scrapeOptions: undefined,
-            },
-            credits_cost: credits_billed,
-            zeroDataRetention: false,
+        logSearch({
+          id: jobId,
+          request_id: jobId,
+          query: req.body.query,
+          is_successful: true,
+          error: undefined,
+          results: searchResponse as any,
+          num_results: totalResultsCount,
+          time_taken: timeTakenInSeconds,
+          team_id: req.auth.team_id,
+          options: {
+            ...req.body,
+            query: undefined,
+            scrapeOptions: undefined,
           },
-          false,
-        );
+          credits_cost: credits_billed,
+          zeroDataRetention: false,
+        });
 
         return res.status(200).json({
           success: true,
@@ -597,23 +594,20 @@ export async function x402SearchController(
       time_taken: timeTakenInSeconds,
     });
 
-    logSearch(
-      {
-        id: jobId,
-        request_id: jobId,
-        query: req.body.query,
-        is_successful: true,
-        error: undefined,
-        results: searchResponse as any,
-        num_results: totalResultsCount,
-        time_taken: timeTakenInSeconds,
-        team_id: req.auth.team_id,
-        options: { ...req.body, scrapeOptions: undefined, query: undefined },
-        credits_cost: credits_billed,
-        zeroDataRetention: false, // not supported
-      },
-      false,
-    );
+    logSearch({
+      id: jobId,
+      request_id: jobId,
+      query: req.body.query,
+      is_successful: true,
+      error: undefined,
+      results: searchResponse as any,
+      num_results: totalResultsCount,
+      time_taken: timeTakenInSeconds,
+      team_id: req.auth.team_id,
+      options: { ...req.body, scrapeOptions: undefined, query: undefined },
+      credits_cost: credits_billed,
+      zeroDataRetention: false, // not supported
+    });
 
     // For sync scraping or no scraping, don't include scrapeIds
     return res.status(200).json({

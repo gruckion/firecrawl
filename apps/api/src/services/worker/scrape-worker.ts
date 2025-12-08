@@ -460,24 +460,21 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
       doc.metadata.creditsUsed = credits_billed ?? undefined;
 
       logger.debug("Logging job to DB...");
-      await logScrape(
-        {
-          id: job.id,
-          request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
-          url: job.data.url,
-          is_successful: true,
-          doc,
-          time_taken: timeTakenInSeconds,
-          team_id: job.data.team_id,
-          options: job.data.scrapeOptions,
-          cost_tracking: costTracking.toJSON(),
-          pdf_num_pages: doc.metadata.numPages,
-          credits_cost: credits_billed ?? 0,
-          zeroDataRetention: job.data.zeroDataRetention,
-          skipNuq: job.data.skipNuq ?? false,
-        },
-        true,
-      );
+      await logScrape({
+        id: job.id,
+        request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
+        url: job.data.url,
+        is_successful: true,
+        doc,
+        time_taken: timeTakenInSeconds,
+        team_id: job.data.team_id,
+        options: job.data.scrapeOptions,
+        cost_tracking: costTracking.toJSON(),
+        pdf_num_pages: doc.metadata.numPages,
+        credits_cost: credits_billed ?? 0,
+        zeroDataRetention: job.data.zeroDataRetention,
+        skipNuq: job.data.skipNuq ?? false,
+      });
 
       if (job.data.v1) {
         const sender = await createWebhookSender({
@@ -530,24 +527,21 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
 
       doc.metadata.creditsUsed = credits_billed ?? undefined;
 
-      await logScrape(
-        {
-          id: job.id,
-          request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
-          url: job.data.url,
-          is_successful: true,
-          doc,
-          time_taken: timeTakenInSeconds,
-          team_id: job.data.team_id,
-          options: job.data.scrapeOptions,
-          cost_tracking: costTracking.toJSON(),
-          pdf_num_pages: doc.metadata.numPages,
-          credits_cost: credits_billed ?? 0,
-          zeroDataRetention: job.data.zeroDataRetention,
-          skipNuq: job.data.skipNuq ?? false,
-        },
-        false,
-      );
+      await logScrape({
+        id: job.id,
+        request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
+        url: job.data.url,
+        is_successful: true,
+        doc,
+        time_taken: timeTakenInSeconds,
+        team_id: job.data.team_id,
+        options: job.data.scrapeOptions,
+        cost_tracking: costTracking.toJSON(),
+        pdf_num_pages: doc.metadata.numPages,
+        credits_cost: credits_billed ?? 0,
+        zeroDataRetention: job.data.zeroDataRetention,
+        skipNuq: job.data.skipNuq ?? false,
+      });
     }
 
     logger.info(`🐂 Job done ${job.id}`);
@@ -680,27 +674,24 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
     );
 
     logger.debug("Logging job to DB...");
-    await logScrape(
-      {
-        id: job.id,
-        request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
-        url: job.data.url,
-        is_successful: false,
-        error:
-          typeof error === "string"
-            ? error
-            : (error.message ??
-              "Something went wrong... Contact help@mendable.ai"),
-        time_taken: timeTakenInSeconds,
-        team_id: job.data.team_id,
-        options: job.data.scrapeOptions,
-        cost_tracking: costTracking.toJSON(),
-        credits_cost: credits_billed ?? 0,
-        zeroDataRetention: job.data.zeroDataRetention,
-        skipNuq: job.data.skipNuq ?? false,
-      },
-      true,
-    );
+    await logScrape({
+      id: job.id,
+      request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
+      url: job.data.url,
+      is_successful: false,
+      error:
+        typeof error === "string"
+          ? error
+          : (error.message ??
+            "Something went wrong... Contact help@mendable.ai"),
+      time_taken: timeTakenInSeconds,
+      team_id: job.data.team_id,
+      options: job.data.scrapeOptions,
+      cost_tracking: costTracking.toJSON(),
+      credits_cost: credits_billed ?? 0,
+      zeroDataRetention: job.data.zeroDataRetention,
+      skipNuq: job.data.skipNuq ?? false,
+    });
     return data;
   } finally {
     if (abortTimeoutHandle) clearTimeout(abortTimeoutHandle);

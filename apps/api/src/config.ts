@@ -60,6 +60,7 @@ const configSchema = z.object({
   INDEX_SUPABASE_URL: z.string().optional(),
   INDEX_SUPABASE_SERVICE_TOKEN: z.string().optional(),
   SEARCH_INDEX_SUPABASE_URL: z.string().optional(),
+  DATABASE_URI: z.string().optional(),
 
   // Google Cloud Storage
   GCS_BUCKET_NAME: z.string().optional(),

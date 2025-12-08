@@ -1,4 +1,3 @@
-import { supabase_service } from "../supabase";
 import { config } from "../../config";
 import "dotenv/config";
 import { logger as _logger } from "../../lib/logger";
@@ -14,76 +13,22 @@ import {
 import { hasFormatOfType } from "../../lib/format-utils";
 import type { Document, ScrapeOptions } from "../../controllers/v2/types";
 import type { CostTracking } from "../../lib/cost-tracking";
-import type { Logger } from "winston";
+import { sql } from "drizzle-orm";
+import { drizzle } from "../drizzle";
+import {
+  batchScrapes,
+  crawls,
+  deepResearches,
+  extracts,
+  llmstxts,
+  maps,
+  requests,
+  scrapes,
+  searches,
+} from "../../db/schema";
 configDotenv();
 
 const previewTeamId = "3adefd26-77ec-5968-8dcf-c94b5630d1de";
-
-async function robustInsert(
-  table: string,
-  data: any,
-  force: boolean,
-  logger: Logger,
-) {
-  if (config.USE_DB_AUTHENTICATION !== true) {
-    logger.info(
-      "Skipping database insertion due to USE_DB_AUTHENTICATION being off",
-      { table },
-    );
-    return;
-  }
-
-  if (force) {
-    let i = 0,
-      done = false;
-    while (i++ <= 10) {
-      try {
-        const { error } = await supabase_service.from(table).insert(data);
-        if (error) {
-          logger.error(
-            "Error inserting into database due to Supabase error, trying again",
-            { error, table },
-          );
-          await new Promise(resolve => setTimeout(resolve, 75));
-        } else {
-          done = true;
-          break;
-        }
-      } catch (error) {
-        logger.error(
-          "Error inserting into database due to unknown error, trying again",
-          { error, table },
-        );
-        await new Promise(resolve => setTimeout(resolve, 75));
-      }
-    }
-
-    if (done) {
-      logger.info("Inserted into database successfully", { table });
-    } else {
-      logger.error("Failed to insert into database after 10 attempts", {
-        table,
-      });
-    }
-  } else {
-    try {
-      const { error } = await supabase_service.from(table).insert(data);
-      if (error) {
-        logger.error("Error inserting into database due to Supabase error", {
-          error,
-          table,
-        });
-      } else {
-        logger.info("Inserted into database successfully", { table });
-      }
-    } catch (error) {
-      logger.error("Error inserting into database due to unknown error", {
-        error,
-        table,
-      });
-    }
-  }
-}
 
 type LoggedRequest = {
   id: string;
@@ -98,7 +43,7 @@ type LoggedRequest = {
     | "map";
   api_version: string;
   team_id: string;
-  origin?: string;
+  origin: string;
   integration?: string | null;
   target_hint: string;
   zeroDataRetention: boolean;
@@ -114,29 +59,26 @@ export async function logRequest(request: LoggedRequest) {
     zeroDataRetention: request.zeroDataRetention,
   });
 
-  await robustInsert(
-    "requests",
-    {
-      id: request.id,
-      kind: request.kind,
-      api_version: request.api_version,
-      team_id:
-        request.team_id === "preview" || request.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : request.team_id,
-      origin: request.origin,
-      integration: request.integration ?? null,
-      target_hint: request.zeroDataRetention
-        ? "<redacted due to zero data retention>"
-        : request.target_hint,
-      dr_clean_by: request.zeroDataRetention
-        ? new Date(Date.now() + 24 * 60 * 60 * 1000)
-        : null,
-      api_key_id: request.api_key_id ?? null,
-    },
-    true,
-    logger,
-  );
+  await drizzle.insert(requests).values({
+    id: request.id,
+    kind: request.kind,
+    apiVersion: request.api_version,
+    teamId:
+      request.team_id === "preview" || request.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : request.team_id,
+    origin: request.origin,
+    integration: request.integration ?? null,
+    targetHint: request.zeroDataRetention
+      ? "<redacted due to zero data retention>"
+      : request.target_hint,
+    drCleanBy: request.zeroDataRetention
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+      : null,
+    apiKeyId: request.api_key_id ?? null,
+  });
+
+  logger.info("Request logged successfully", { requestId: request.id });
 }
 
 export type LoggedScrape = {
@@ -156,7 +98,7 @@ export type LoggedScrape = {
   zeroDataRetention: boolean;
 };
 
-export async function logScrape(scrape: LoggedScrape, force: boolean = false) {
+export async function logScrape(scrape: LoggedScrape) {
   const logger = _logger.child({
     module: "log_job",
     method: "logScrape",
@@ -166,33 +108,30 @@ export async function logScrape(scrape: LoggedScrape, force: boolean = false) {
     zeroDataRetention: scrape.zeroDataRetention,
   });
 
-  await robustInsert(
-    "scrapes",
-    {
-      id: scrape.id,
-      request_id: scrape.request_id,
-      url: scrape.zeroDataRetention
-        ? "<redacted due to zero data retention>"
-        : scrape.url,
-      is_successful: scrape.is_successful,
-      error: scrape.error ?? null,
-      time_taken: scrape.time_taken,
-      team_id:
-        scrape.team_id === "preview" || scrape.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : scrape.team_id,
-      options: scrape.zeroDataRetention ? null : scrape.options,
-      cost_tracking: scrape.zeroDataRetention
-        ? null
-        : (scrape.cost_tracking ?? null),
-      pdf_num_pages: scrape.zeroDataRetention
-        ? null
-        : (scrape.pdf_num_pages ?? null),
-      credits_cost: scrape.credits_cost,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(scrapes).values({
+    id: scrape.id,
+    requestId: scrape.request_id,
+    url: scrape.zeroDataRetention
+      ? "<redacted due to zero data retention>"
+      : scrape.url,
+    isSuccessful: scrape.is_successful,
+    error: scrape.error ?? null,
+    timeTaken: scrape.time_taken,
+    teamId:
+      scrape.team_id === "preview" || scrape.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : scrape.team_id,
+    options: scrape.zeroDataRetention ? null : scrape.options,
+    costTracking: scrape.zeroDataRetention
+      ? null
+      : (scrape.cost_tracking ?? null),
+    pdfNumPages: scrape.zeroDataRetention
+      ? null
+      : (scrape.pdf_num_pages ?? null),
+    creditsCost: scrape.credits_cost,
+  });
+
+  logger.info("Scrape logged successfully", { scrapeId: scrape.id });
 
   if (
     scrape.doc &&
@@ -214,27 +153,23 @@ export async function logScrape(scrape: LoggedScrape, force: boolean = false) {
     );
 
     if (hasMarkdown || hasChangeTracking) {
-      const { error } = await supabase_service.rpc(
-        "change_tracking_insert_scrape",
-        {
-          p_team_id: scrape.team_id,
-          p_url: scrape.url,
-          p_job_id: scrape.id,
-          p_change_tracking_tag: hasChangeTracking
-            ? hasChangeTracking.tag
-            : null,
-          p_date_added: new Date().toISOString(),
-        },
-      );
-
-      if (error) {
+      try {
+        await drizzle.execute(
+          sql`SELECT change_tracking_insert_scrape(
+            ${scrape.team_id},
+            ${scrape.url},
+            ${scrape.id},
+            ${hasChangeTracking ? hasChangeTracking.tag : null},
+            ${new Date().toISOString()}
+          )`,
+        );
+        _logger.debug("Change tracking record inserted successfully");
+      } catch (error) {
         _logger.warn("Error inserting into change_tracking_scrapes", {
           error,
           scrapeId: scrape.id,
           teamId: scrape.team_id,
         });
-      } else {
-        _logger.debug("Change tracking record inserted successfully");
       }
     }
   }
@@ -252,7 +187,7 @@ type LoggedCrawl = {
   cancelled: boolean;
 };
 
-export async function logCrawl(crawl: LoggedCrawl, force: boolean = false) {
+export async function logCrawl(crawl: LoggedCrawl) {
   const logger = _logger.child({
     module: "log_job",
     method: "logCrawl",
@@ -262,26 +197,23 @@ export async function logCrawl(crawl: LoggedCrawl, force: boolean = false) {
     zeroDataRetention: crawl.zeroDataRetention,
   });
 
-  await robustInsert(
-    "crawls",
-    {
-      id: crawl.id,
-      request_id: crawl.request_id,
-      url: crawl.zeroDataRetention
-        ? "<redacted due to zero data retention>"
-        : crawl.url,
-      team_id:
-        crawl.team_id === "preview" || crawl.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : crawl.team_id,
-      options: crawl.zeroDataRetention ? null : crawl.options,
-      num_docs: crawl.num_docs,
-      credits_cost: crawl.credits_cost,
-      cancelled: crawl.cancelled,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(crawls).values({
+    id: crawl.id,
+    requestId: crawl.request_id,
+    url: crawl.zeroDataRetention
+      ? "<redacted due to zero data retention>"
+      : crawl.url,
+    teamId:
+      crawl.team_id === "preview" || crawl.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : crawl.team_id,
+    options: crawl.zeroDataRetention ? null : crawl.options,
+    numDocs: crawl.num_docs,
+    creditsCost: crawl.credits_cost,
+    cancelled: crawl.cancelled,
+  });
+
+  logger.info("Crawl logged successfully", { crawlId: crawl.id });
 }
 
 type LoggedBatchScrape = {
@@ -294,10 +226,7 @@ type LoggedBatchScrape = {
   cancelled: boolean;
 };
 
-export async function logBatchScrape(
-  batchScrape: LoggedBatchScrape,
-  force: boolean = false,
-) {
+export async function logBatchScrape(batchScrape: LoggedBatchScrape) {
   const logger = _logger.child({
     module: "log_job",
     method: "logBatchScrape",
@@ -307,23 +236,22 @@ export async function logBatchScrape(
     zeroDataRetention: batchScrape.zeroDataRetention,
   });
 
-  await robustInsert(
-    "batch_scrapes",
-    {
-      id: batchScrape.id,
-      request_id: batchScrape.request_id,
-      team_id:
-        batchScrape.team_id === "preview" ||
-        batchScrape.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : batchScrape.team_id,
-      num_docs: batchScrape.num_docs,
-      credits_cost: batchScrape.credits_cost,
-      cancelled: batchScrape.cancelled,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(batchScrapes).values({
+    id: batchScrape.id,
+    requestId: batchScrape.request_id,
+    teamId:
+      batchScrape.team_id === "preview" ||
+      batchScrape.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : batchScrape.team_id,
+    numDocs: batchScrape.num_docs,
+    creditsCost: batchScrape.credits_cost,
+    cancelled: batchScrape.cancelled,
+  });
+
+  logger.info("Batch scrape logged successfully", {
+    batchScrapeId: batchScrape.id,
+  });
 }
 
 export type LoggedSearch = {
@@ -341,7 +269,7 @@ export type LoggedSearch = {
   zeroDataRetention: boolean;
 };
 
-export async function logSearch(search: LoggedSearch, force: boolean = false) {
+export async function logSearch(search: LoggedSearch) {
   const logger = _logger.child({
     module: "log_job",
     method: "logSearch",
@@ -351,28 +279,25 @@ export async function logSearch(search: LoggedSearch, force: boolean = false) {
     zeroDataRetention: search.zeroDataRetention,
   });
 
-  await robustInsert(
-    "searches",
-    {
-      id: search.id,
-      request_id: search.request_id,
-      query: search.zeroDataRetention
-        ? "<redacted due to zero data retention>"
-        : search.query,
-      team_id:
-        search.team_id === "preview" || search.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : search.team_id,
-      options: search.zeroDataRetention ? null : search.options,
-      credits_cost: search.credits_cost,
-      is_successful: search.is_successful,
-      error: search.zeroDataRetention ? null : (search.error ?? null),
-      num_results: search.num_results,
-      time_taken: search.time_taken,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(searches).values({
+    id: search.id,
+    requestId: search.request_id,
+    query: search.zeroDataRetention
+      ? "<redacted due to zero data retention>"
+      : search.query,
+    teamId:
+      search.team_id === "preview" || search.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : search.team_id,
+    options: search.zeroDataRetention ? null : search.options,
+    creditsCost: search.credits_cost,
+    isSuccessful: search.is_successful,
+    error: search.zeroDataRetention ? null : (search.error ?? null),
+    numResults: search.num_results,
+    timeTaken: search.time_taken,
+  });
+
+  logger.info("Search logged successfully", { searchId: search.id });
 
   if (search.results && !search.zeroDataRetention) {
     await saveSearchToGCS(search);
@@ -393,10 +318,7 @@ export type LoggedExtract = {
   cost_tracking?: ReturnType<typeof CostTracking.prototype.toJSON>;
 };
 
-export async function logExtract(
-  extract: LoggedExtract,
-  force: boolean = false,
-) {
+export async function logExtract(extract: LoggedExtract) {
   const logger = _logger.child({
     module: "log_job",
     method: "logExtract",
@@ -405,26 +327,23 @@ export async function logExtract(
     teamId: extract.team_id,
   });
 
-  await robustInsert(
-    "extracts",
-    {
-      id: extract.id,
-      request_id: extract.request_id,
-      urls: extract.urls,
-      team_id:
-        extract.team_id === "preview" || extract.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : extract.team_id,
-      options: extract.options,
-      model_kind: extract.model_kind,
-      credits_cost: extract.credits_cost,
-      is_successful: extract.is_successful,
-      error: extract.error ?? null,
-      cost_tracking: extract.cost_tracking ?? null,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(extracts).values({
+    id: extract.id,
+    requestId: extract.request_id,
+    urls: extract.urls,
+    teamId:
+      extract.team_id === "preview" || extract.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : extract.team_id,
+    options: extract.options,
+    modelKind: extract.model_kind,
+    creditsCost: extract.credits_cost,
+    isSuccessful: extract.is_successful,
+    error: extract.error ?? null,
+    costTracking: extract.cost_tracking ?? null,
+  });
+
+  logger.info("Extract logged successfully", { extractId: extract.id });
 
   if (extract.result) {
     await saveExtractToGCS(extract);
@@ -442,7 +361,7 @@ export type LoggedMap = {
   zeroDataRetention: boolean;
 };
 
-export async function logMap(map: LoggedMap, force: boolean = false) {
+export async function logMap(map: LoggedMap) {
   const logger = _logger.child({
     module: "log_job",
     method: "logMap",
@@ -452,25 +371,22 @@ export async function logMap(map: LoggedMap, force: boolean = false) {
     zeroDataRetention: map.zeroDataRetention,
   });
 
-  await robustInsert(
-    "maps",
-    {
-      id: map.id,
-      request_id: map.request_id,
-      url: map.zeroDataRetention
-        ? "<redacted due to zero data retention>"
-        : map.url,
-      team_id:
-        map.team_id === "preview" || map.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : map.team_id,
-      options: map.zeroDataRetention ? null : map.options,
-      num_results: map.results.length,
-      credits_cost: map.credits_cost,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(maps).values({
+    id: map.id,
+    requestId: map.request_id,
+    url: map.zeroDataRetention
+      ? "<redacted due to zero data retention>"
+      : map.url,
+    teamId:
+      map.team_id === "preview" || map.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : map.team_id,
+    options: map.zeroDataRetention ? null : map.options,
+    numResults: map.results.length,
+    creditsCost: map.credits_cost,
+  });
+
+  logger.info("Map logged successfully", { mapId: map.id });
 
   if (map.results && !map.zeroDataRetention) {
     await saveMapToGCS(map);
@@ -489,10 +405,7 @@ export type LoggedLlmsTxt = {
   result: { llmstxt: string; llmsfulltxt: string };
 };
 
-export async function logLlmsTxt(
-  llmsTxt: LoggedLlmsTxt,
-  force: boolean = false,
-) {
+export async function logLlmsTxt(llmsTxt: LoggedLlmsTxt) {
   const logger = _logger.child({
     module: "log_job",
     method: "logLlmsTxt",
@@ -501,24 +414,21 @@ export async function logLlmsTxt(
     teamId: llmsTxt.team_id,
   });
 
-  await robustInsert(
-    "llmstxts",
-    {
-      id: llmsTxt.id,
-      request_id: llmsTxt.request_id,
-      url: llmsTxt.url,
-      team_id:
-        llmsTxt.team_id === "preview" || llmsTxt.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : llmsTxt.team_id,
-      options: llmsTxt.options,
-      num_urls: llmsTxt.num_urls,
-      credits_cost: llmsTxt.credits_cost,
-      cost_tracking: llmsTxt.cost_tracking ?? null,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(llmstxts).values({
+    id: llmsTxt.id,
+    requestId: llmsTxt.request_id,
+    url: llmsTxt.url,
+    teamId:
+      llmsTxt.team_id === "preview" || llmsTxt.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : llmsTxt.team_id,
+    options: llmsTxt.options,
+    numUrls: llmsTxt.num_urls,
+    creditsCost: llmsTxt.credits_cost,
+    costTracking: llmsTxt.cost_tracking ?? null,
+  });
+
+  logger.info("LlmsTxt logged successfully", { llmsTxtId: llmsTxt.id });
 
   if (llmsTxt.result) {
     await saveLlmsTxtToGCS(llmsTxt);
@@ -537,10 +447,7 @@ export type LoggedDeepResearch = {
   cost_tracking?: ReturnType<typeof CostTracking.prototype.toJSON>;
 };
 
-export async function logDeepResearch(
-  deepResearch: LoggedDeepResearch,
-  force: boolean = false,
-) {
+export async function logDeepResearch(deepResearch: LoggedDeepResearch) {
   const logger = _logger.child({
     module: "log_job",
     method: "logDeepResearch",
@@ -549,25 +456,24 @@ export async function logDeepResearch(
     teamId: deepResearch.team_id,
   });
 
-  await robustInsert(
-    "deep_researches",
-    {
-      id: deepResearch.id,
-      request_id: deepResearch.request_id,
-      query: deepResearch.query,
-      team_id:
-        deepResearch.team_id === "preview" ||
-        deepResearch.team_id?.startsWith("preview_")
-          ? previewTeamId
-          : deepResearch.team_id,
-      options: deepResearch.options,
-      time_taken: deepResearch.time_taken,
-      credits_cost: deepResearch.credits_cost,
-      cost_tracking: deepResearch.cost_tracking ?? null,
-    },
-    force,
-    logger,
-  );
+  await drizzle.insert(deepResearches).values({
+    id: deepResearch.id,
+    requestId: deepResearch.request_id,
+    query: deepResearch.query,
+    teamId:
+      deepResearch.team_id === "preview" ||
+      deepResearch.team_id?.startsWith("preview_")
+        ? previewTeamId
+        : deepResearch.team_id,
+    options: deepResearch.options,
+    timeTaken: deepResearch.time_taken,
+    creditsCost: deepResearch.credits_cost,
+    costTracking: deepResearch.cost_tracking ?? null,
+  });
+
+  logger.info("Deep research logged successfully", {
+    deepResearchId: deepResearch.id,
+  });
 
   if (deepResearch.result) {
     await saveDeepResearchToGCS(deepResearch);

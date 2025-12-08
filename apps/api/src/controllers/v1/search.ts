@@ -447,27 +447,24 @@ export async function searchController(
       time_taken: timeTakenInSeconds,
     });
 
-    logSearch(
-      {
-        id: jobId,
-        request_id: jobId,
-        query: req.body.query,
-        is_successful: true,
-        error: undefined,
-        results: responseData.data,
-        num_results: responseData.data.length,
-        time_taken: timeTakenInSeconds,
-        team_id: req.auth.team_id,
-        options: {
-          ...req.body,
-          query: undefined,
-          scrapeOptions: undefined,
-        },
-        credits_cost: credits_billed,
-        zeroDataRetention: false, // not supported
+    logSearch({
+      id: jobId,
+      request_id: jobId,
+      query: req.body.query,
+      is_successful: true,
+      error: undefined,
+      results: responseData.data,
+      num_results: responseData.data.length,
+      time_taken: timeTakenInSeconds,
+      team_id: req.auth.team_id,
+      options: {
+        ...req.body,
+        query: undefined,
+        scrapeOptions: undefined,
       },
-      false,
-    );
+      credits_cost: credits_billed,
+      zeroDataRetention: false, // not supported
+    });
 
     // Log final timing information
     const totalRequestTime = new Date().getTime() - middlewareStartTime;

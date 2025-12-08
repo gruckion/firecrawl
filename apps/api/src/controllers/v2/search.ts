@@ -543,23 +543,20 @@ export async function searchController(
           scrapeIds,
         });
 
-        logSearch(
-          {
-            id: jobId,
-            request_id: jobId,
-            query: req.body.query,
-            is_successful: true,
-            error: undefined,
-            results: searchResponse as any,
-            num_results: totalResultsCount,
-            time_taken: timeTakenInSeconds,
-            team_id: req.auth.team_id,
-            options: req.body,
-            credits_cost: credits_billed,
-            zeroDataRetention: isZDROrAnon ?? false,
-          },
-          false,
-        );
+        logSearch({
+          id: jobId,
+          request_id: jobId,
+          query: req.body.query,
+          is_successful: true,
+          error: undefined,
+          results: searchResponse as any,
+          num_results: totalResultsCount,
+          time_taken: timeTakenInSeconds,
+          team_id: req.auth.team_id,
+          options: req.body,
+          credits_cost: credits_billed,
+          zeroDataRetention: isZDROrAnon ?? false,
+        });
 
         // Log final timing information for async mode
         const totalRequestTime = new Date().getTime() - middlewareStartTime;
@@ -697,23 +694,20 @@ export async function searchController(
       time_taken: timeTakenInSeconds,
     });
 
-    logSearch(
-      {
-        id: jobId,
-        request_id: jobId,
-        query: req.body.query,
-        is_successful: true,
-        error: undefined,
-        results: searchResponse as any,
-        num_results: totalResultsCount,
-        time_taken: timeTakenInSeconds,
-        team_id: req.auth.team_id,
-        options: req.body,
-        credits_cost: credits_billed,
-        zeroDataRetention: isZDROrAnon ?? false, // not supported
-      },
-      false,
-    );
+    logSearch({
+      id: jobId,
+      request_id: jobId,
+      query: req.body.query,
+      is_successful: true,
+      error: undefined,
+      results: searchResponse as any,
+      num_results: totalResultsCount,
+      time_taken: timeTakenInSeconds,
+      team_id: req.auth.team_id,
+      options: req.body,
+      credits_cost: credits_billed,
+      zeroDataRetention: isZDROrAnon ?? false, // not supported
+    });
 
     // Log final timing information
     const totalRequestTime = new Date().getTime() - middlewareStartTime;
