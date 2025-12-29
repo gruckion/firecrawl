@@ -21,9 +21,6 @@ WORKDIR /app
 
 # Build arguments
 ARG COMMIT_SHA
-ARG SENTRY_AUTH_TOKEN
-ARG SENTRY_ORG
-ARG SENTRY_PROJECT
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -61,18 +58,6 @@ RUN if [ -z "$COMMIT_SHA" ]; then \
 
 # Build the application
 RUN pnpm run build
-
-# Upload sourcemaps to Sentry if SENTRY_AUTH_TOKEN is provided
-RUN COMMIT_SHA=$(cat /tmp/commit_sha.txt) && \
-    if [ -n "$SENTRY_AUTH_TOKEN" ] && [ "$COMMIT_SHA" != "unknown" ]; then \
-      export SENTRY_AUTH_TOKEN="$SENTRY_AUTH_TOKEN" && \
-      [ -n "$SENTRY_ORG" ] && export SENTRY_ORG="$SENTRY_ORG" || true && \
-      [ -n "$SENTRY_PROJECT" ] && export SENTRY_PROJECT="$SENTRY_PROJECT" || true && \
-      export SENTRY_RELEASE="$COMMIT_SHA" && \
-      pnpm run sentry:sourcemaps || echo "Warning: Sentry sourcemap upload failed"; \
-    else \
-      echo "Skipping Sentry sourcemap upload (SENTRY_AUTH_TOKEN not provided or COMMIT_SHA is unknown)"; \
-    fi
 
 # Remove dev dependencies
 RUN pnpm prune --prod --ignore-scripts
