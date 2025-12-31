@@ -221,7 +221,7 @@ describeIf(TEST_PRODUCTION || HAS_SEARCH || HAS_PROXY)("Search tests", () => {
       const res = await searchWithCredits(
         {
           query: "firecrawl.dev",
-          limit: 2,
+          limit: 5,
           scrapeOptions: {
             formats: ["markdown"],
             proxy: "basic",
@@ -233,10 +233,10 @@ describeIf(TEST_PRODUCTION || HAS_SEARCH || HAS_PROXY)("Search tests", () => {
       );
 
       // creditsUsed should include both search credits (2 per 10 results) and scrape credits
-      // With 2 results: search credits = ceil(2/10) * 2 = 2, plus scrape credits (1 per page with basic proxy and no parsers)
-      // So total should be exactly 2 (search) + 2 (scrapes) = 4
+      // With 5 results: search credits = ceil(5/10) * 2 = 2, plus scrape credits (1 per page with basic proxy and no parsers)
+      // So total should be exactly 2 (search) + 5 (scrapes) = 7
       expect(res.creditsUsed).toBeDefined();
-      expect(res.creditsUsed).toBe(4);
+      expect(res.creditsUsed).toBe(7);
 
       // Verify we got scraped content
       for (const doc of res.data.web ?? []) {
@@ -263,5 +263,47 @@ describeIf(TEST_PRODUCTION || HAS_SEARCH || HAS_PROXY)("Search tests", () => {
       expect(res.creditsUsed).toBe(2);
     },
     60000,
+  );
+
+  it.concurrent(
+    "creditsUsed is correct for ZDR search with scraping",
+    async () => {
+      // Create a ZDR-enabled identity for this test
+      const zdrIdentity = await idmux({
+        name: "search/zdr-credits",
+        concurrency: 100,
+        credits: 1000000,
+        flags: {
+          allowZDR: true,
+        },
+      });
+
+      const res = await searchWithCredits(
+        {
+          query: "firecrawl.dev",
+          limit: 5,
+          enterprise: ["zdr"],
+          scrapeOptions: {
+            formats: ["markdown"],
+            proxy: "basic",
+            parsers: [],
+          },
+          timeout: 120000,
+        },
+        zdrIdentity,
+      );
+
+      // ZDR search credits = ceil(5/10) * 10 = 10 (10 credits per 10 results for ZDR)
+      // ZDR scrape credits = 5 * 2 = 10 (2 credits per page for ZDR)
+      // Total = 10 + 10 = 20
+      expect(res.creditsUsed).toBeDefined();
+      expect(res.creditsUsed).toBe(20);
+
+      // Verify we got scraped content
+      for (const doc of res.data.web ?? []) {
+        expect(doc.markdown).toBeDefined();
+      }
+    },
+    125000,
   );
 });
